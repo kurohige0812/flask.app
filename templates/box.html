@@ -1,0 +1,95 @@
+{% extends "base.html" %}{% set tab="box" %}
+{% block content %}
+<h4>箱計算</h4>
+<h5>一箱の玉数と段数</h5>
+<form id="cfgForm" class="row gy-2 mb-3">
+  <div class="col-6">
+    <input type="number" min="1" class="form-control" placeholder="箱に入る玉数" id="boxCap">
+  </div>
+  <div class="col-4">
+    <input type="number" min="1" class="form-control" placeholder="段数" id="levels">
+  </div>
+  <div class="col-2 d-grid">
+    <button class="btn btn-primary w-100">設定</button>
+  </div>
+</form>
+
+<form id="holdForm" class="row gy-2 mb-3" style="display:none">
+  <div class="col-8">
+    <input type="number" min="0" class="form-control" placeholder="現在の持ち玉" id="hold">
+  </div>
+  <div class="col-4 d-grid">
+<h5>持ち玉</h5>
+    <button class="btn btn-success w-100">計算</button>
+  </div>
+</form>
+
+<ul class="list-group" id="resultList"></ul>
+
+<script>
+/* ========== 初期値復元 ========== */
+const boxCapInp=document.getElementById("boxCap");
+const levelsInp=document.getElementById("levels");
+const holdInp  =document.getElementById("hold");
+const cfgForm  =document.getElementById("cfgForm");
+const holdForm =document.getElementById("holdForm");
+const resList  =document.getElementById("resultList");
+
+boxCapInp.value = localStorage.getItem("boxCap")     || "";
+levelsInp.value = localStorage.getItem("levels")     || "";
+holdInp.value   = localStorage.getItem("hold")       || "";
+const savedBoxRows = JSON.parse(localStorage.getItem("boxRows")||"[]");
+
+function showHold(){ holdForm.style.display =
+   (boxCapInp.value && levelsInp.value) ? "flex":"none"; }
+showHold();
+
+/* ========== 箱容量・段数 設定 ========== */
+cfgForm.onsubmit=e=>{
+  e.preventDefault();
+  if(!boxCapInp.value || !levelsInp.value) return;
+  localStorage.setItem("boxCap", boxCapInp.value);
+  localStorage.setItem("levels", levelsInp.value);
+  showHold();
+};
+
+/* ========== 持ち玉 計算 ========== */
+holdForm.onsubmit = async e=>{
+  e.preventDefault();
+  const payload = new URLSearchParams({
+    hold    : holdInp.value||0,
+    box_cap : boxCapInp.value,
+    levels  : levelsInp.value
+  });
+  localStorage.setItem("hold", holdInp.value||0);
+
+  const res  = await fetch("/box",{method:"POST",body:payload});
+  const data = await res.json();
+  renderRows(data);
+  localStorage.setItem("boxRows", JSON.stringify(data)); // ← 保存
+};
+
+/* ========== 行レンダリング関数と復元処理 ========== */
+function renderRows(rows){
+  resList.innerHTML="";
+  rows.forEach(d=>{
+    const li=document.createElement("li");
+    li.className="list-group-item";
+    li.innerHTML = `
+       <div class="d-flex justify-content-between">
+         <span class="fw-bold copyable" data-clip="${d.clip}">${d.clip}</span>
+         <span class="text-info">${d.desc}</span>
+       </div>
+       ${d.calc?`<small>${d.calc}</small>`:''}`;
+    resList.appendChild(li);
+  });
+}
+/* 保存済みがあれば表示 */
+if(savedBoxRows.length) renderRows(savedBoxRows);
+
+/* ========== リセット同期 ========== */
+document.getElementById("reset").addEventListener("click", ()=>{
+  ["boxCap","levels","hold","boxRows"].forEach(k=>localStorage.removeItem(k));
+});
+</script>
+{% endblock %}

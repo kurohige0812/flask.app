@@ -1,0 +1,17 @@
+/* 黒基調・スマホ優先 */
+body, .nav, .list-group-item {background:#111;color:#eee;}
+h4{color:#0d6efd;margin-bottom:1rem;}
+.nav-pills .nav-link{color:#bbb;padding:.7rem 1.3rem;font-weight:600;}
+.nav-pills .nav-link.active{background:#0d6efd;color:#fff;border-radius:50px;}
+.btn{border:none;border-radius:8px;font-size:1rem;padding:.6rem 1.25rem;}
+.btn-primary{background:#0d6efd;} .btn-success{background:#17b169;}
+.btn-outline-secondary{color:#ccc;border:1px solid #555;}
+.form-control{background:#222;border:1px solid #444;color:#eee;}
+.form-control:focus{background:#222;border-color:#0d6efd;color:#fff;box-shadow:none;}
+.list-group-item{border:1px solid #333;border-radius:8px;margin-bottom:.6rem;}
+.container{max-width:540px;}
+.copy-label{
+  font-size: 1.5rem;        /* ← 1.5 倍 */
+  display:inline-block;     /* タップしやすいよう余白を付ける */
+  padding:4px 2px;
+}

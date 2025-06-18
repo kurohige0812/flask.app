@@ -1,0 +1,107 @@
+{% extends "base.html" %}{% set tab="spin" %}
+{% block content %}
+<h4>回転数計算</h4>
+<h5>着席時回転数</h5>
+<!-- 着席回転数 -->
+<form id="baseForm" class="row gy-2 mb-3">
+  <div class="col-8">
+    <input type="number" min="0" class="form-control" placeholder="着席回転数" id="base">
+  </div>
+  <div class="col-4 d-grid">
+    <button class="btn btn-primary w-100">決定</button>
+  </div>
+</form>
+
+<!-- 行をここに生成 -->
+<div id="spinArea"></div>
+
+<script>
+/* ---------- ① 保存データを取得 ---------- */
+const baseInp  = document.getElementById("base");
+const spinArea = document.getElementById("spinArea");
+
+baseInp.value = localStorage.getItem("spinBase") || "";
+let savedRows = JSON.parse(localStorage.getItem("spinRows") || "[]");
+
+/* ---------- ② 行を生成する関数 ---------- */
+function buildRow(idx, diff=null, rate=null, now=null){
+  const usage = 1250 * idx;
+  const row   = document.createElement("div");
+  row.className = "mb-2";
+  row.innerHTML = `
+    <div class="d-flex justify-content-between align-items-center">
+      <span class="h6 mb-0 copy-label"
+            data-clip="${usage}#${diff??''}">
+        ${usage}#${diff??''}
+      </span>
+      <div class="d-flex align-items-center gap-3">
+        <small class="fw-bold">${now??''}</small>
+        <small class="text-info">${rate??''}</small>
+      </div>
+    </div>
+    <div class="input-group mt-1 ${diff!==null?'d-none':''}">
+      <input type="number" min="0" class="form-control" placeholder="現在回転数">
+      <button class="btn btn-success">決定</button>
+    </div>`;
+  spinArea.appendChild(row);
+
+  /* 確定済み行ならここで終わり */
+  if(diff!==null) return;
+
+  const btn   = row.querySelector("button");
+  const input = row.querySelector("input");
+
+  btn.onclick = async ()=>{
+     const now  = Number(input.value || 0);
+     const base = Number(localStorage.getItem("spinBase") || 0);
+     if(!now || !base) return;
+
+     /* diff をサーバーで計算 */
+     const res  = await fetch("/spin", {
+        method:"POST",
+        body:new URLSearchParams({ base, now })
+     });
+     const { diff } = await res.json();
+     const rate = (diff / usage * 250).toFixed(2);
+
+     /* ラベルと右側情報を書き換え */
+     const label = row.querySelector(".copy-label");
+     label.textContent  = `${usage}#${diff}`;
+     label.dataset.clip = `${usage}#${diff}`;
+     const infos = row.querySelectorAll("small");
+     infos[0].textContent = now;   // 現在回転数
+     infos[1].textContent = rate;  // 回転率
+     row.querySelector(".input-group").classList.add("d-none");
+
+     /* 保存して永続化 */
+     savedRows.push({ idx, diff, rate, now });
+     localStorage.setItem("spinRows", JSON.stringify(savedRows));
+
+     buildRow(idx + 1);            // 次の入力行
+  };
+}
+
+/* ---------- ③ 着席回転数を決定 ---------- */
+document.getElementById("baseForm").onsubmit = e=>{
+  e.preventDefault();
+  if(!baseInp.value) return;
+  localStorage.setItem("spinBase", baseInp.value);
+  if(!spinArea.children.length) buildRow(1);   // 行が無ければ最初の行
+};
+
+/* ---------- ④ 保存行を復元し、最後に空入力行を追加 ---------- */
+if(savedRows.length){
+    savedRows.sort((a,b)=>a.idx-b.idx)
+             .forEach(r => buildRow(r.idx, r.diff, r.rate, r.now));
+    buildRow(savedRows[savedRows.length-1].idx + 1);   // 新しい入力行
+}else if(baseInp.value){
+    buildRow(1);                                       // 初回入力行
+}
+
+/* ---------- ⑤ リセット時にページだけ初期化 ---------- */
+document.getElementById("reset").addEventListener("click", ()=>{
+  ["spinBase","spinRows"].forEach(k => localStorage.removeItem(k));
+  spinArea.innerHTML = "";
+});
+</script>
+{% endblock %}
